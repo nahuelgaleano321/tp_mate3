@@ -1,3 +1,5 @@
+#codigo para traducir las columnas y valores del dataset adult a español
+
 import pandas as pd
 import os
 
@@ -5,7 +7,6 @@ import os
 ruta = "/home/nahuel/Escritorio/matematica/tp_mate/adult (3).csv"
 df = pd.read_csv(ruta)
 
-# Diccionario de traducción de columnas
 columnas_traducidas = {
     'age': 'edad',
     'workclass': 'clase_trabajo',
@@ -24,10 +25,8 @@ columnas_traducidas = {
     'income': 'ingreso'
 }
 
-# Renombrar columnas
 df = df.rename(columns=columnas_traducidas)
 
-# Diccionarios de traducción de valores (SIN traducir los ?)
 traducciones_valores = {
     'clase_trabajo': {
         'Private': 'Privado',
@@ -148,12 +147,10 @@ traducciones_valores = {
     }
 }
 
-# Aplicar traducciones a cada columna
 for columna, traducciones in traducciones_valores.items():
     if columna in df.columns:
         df[columna] = df[columna].replace(traducciones)
 
-# Guardar el archivo traducido
 ruta_salida = "/home/nahuel/Escritorio/matematica/tp_mate/adult_español.csv"
 df.to_csv(ruta_salida, index=False)
 
