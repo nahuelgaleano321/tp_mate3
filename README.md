@@ -78,7 +78,7 @@ Las variables numéricas tienen diferentes escalas. La normalización las estand
 
 
 
-## 📊 Resumen de Transformaciones
+## Resumen de Transformaciones hasta el momento
 
 ```
 adult (3).csv (inglés)
