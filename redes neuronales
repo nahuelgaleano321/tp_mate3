@@ -1,0 +1,117 @@
+import numpy as np
+
+class RedNeuronalBinaria:
+    def __init__(self, d_entradas, n_ocultas, tasa_aprendizaje=0.01):
+        """
+        Inicialización de pesos utilizando He (Kaiming) para ReLU 
+        y Xavier/Glorot sutil para la capa de salida.
+        """
+        self.alpha = tasa_aprendizaje
+        
+        # Pesos y sesgos de Capa de Entrada a Capa Oculta
+        # He init: media 0 y varianza 2/d_entradas
+        self.W1 = np.random.randn(d_entradas, n_ocultas) * np.sqrt(2.0 / d_entradas)
+        self.b1 = np.zeros((1, n_ocultas))
+        
+        # Pesos y sesgos de Capa Oculta a Capa de Salida
+        self.W2 = np.random.randn(n_ocultas, 1) * np.sqrt(1.0 / n_ocultas)
+        self.b2 = np.zeros((1, 1))
+        
+    def _relu(self, Z):
+        return np.maximum(0, Z)
+        
+    def _relu_derivada(self, Z):
+        return np.where(Z > 0, 1.0, 0.0)
+        
+    def _sigmoide(self, Z):
+        # Clip para evitar desbordamiento por valores extremos (overflow)
+        Z = np.clip(Z, -500, 500)
+        return 1.0 / (1.0 + np.exp(-Z))
+    
+    def forward_propagation(self, X):
+        """
+        Calcula las activaciones de cada capa hacia adelante.
+        """
+        # Capa Oculta
+        self.Z1 = np.dot(X, self.W1) + self.b1
+        self.A1 = self._relu(self.Z1)
+        
+        # Capa de Salida
+        self.Z2 = np.dot(self.A1, self.W2) + self.b2
+        self.A2 = self._sigmoide(self.Z2)
+        
+        return self.A2
+        
+    def calcular_costo(self, Y_real, Y_pred):
+        """
+        Función de Costo: Entropía Cruzada Binaria (Binary Cross-Entropy Loss)
+        """
+        m = Y_real.shape[0]
+        # Agregamos un epsilon para evitar log(0) que rompería el cálculo con NaN
+        epsilon = 1e-15
+        Y_pred = np.clip(Y_pred, epsilon, 1 - epsilon)
+        
+        costo = - (1 / m) * np.sum(Y_real * np.log(Y_pred) + (1 - Y_real) * np.log(1 - Y_pred))
+        return costo
+        
+    def backpropagation_y_sgd(self, X, Y_real):
+        """
+        Algoritmo de retropropagación mediante Regla de la Cadena 
+        y ajuste de parámetros por Descenso por Gradiente Estocástico (SGD / Mini-batch).
+        """
+        m = X.shape[0]
+        
+        # 1. Derivada del costo respecto a la activación de salida combinada con la sigmoide (dZ2)
+        # Simplificación analítica de dLoss/dA2 * dA2/dZ2
+        dZ2 = self.A2 - Y_real  
+        
+        # Gradientes de la Capa de Salida
+        dW2 = (1 / m) * np.dot(self.A1.T, dZ2)
+        db2 = (1 / m) * np.sum(dZ2, axis=0, keepdims=True)
+        
+        # 2. Propagación del error hacia la Capa Oculta aplicando derivada de ReLU
+        dA1 = np.dot(dZ2, self.W2.T)
+        dZ1 = dA1 * self._relu_derivada(self.Z1)
+        
+        # Gradientes de la Capa Oculta
+        dW1 = (1 / m) * np.dot(X.T, dZ1)
+        db1 = (1 / m) * np.sum(dZ1, axis=0, keepdims=True)
+        
+        # 3. Ajuste de los pesos utilizando Descenso por Gradiente
+        self.W2 -= self.alpha * dW2
+        self.b2 -= self.alpha * db2
+        self.W1 -= self.alpha * dW1
+        self.b1 -= self.alpha * db1
+
+    def entrenar(self, X_train, Y_train, epochs=100, batch_size=32):
+        """
+        Loop de entrenamiento por épocas subdividido en Mini-batches (SGD adaptado)
+        """
+        m = X_train.shape[0]
+        historial_costo = []
+        
+        for epoch in range(epochs):
+            # Mezclamos los datos en cada época para cumplir la condición estocástica
+            indices = np.random.permutation(m)
+            X_mezclado = X_train[indices]
+            Y_mezclado = Y_train[indices]
+            
+            # Mini-batches
+            for i in range(0, m, batch_size):
+                X_batch = X_mezclado[i:i+batch_size]
+                Y_batch = Y_mezclado[i:i+batch_size]
+                
+                # Pasada hacia adelante
+                Y_pred_batch = self.forward_propagation(X_batch)
+                # Retropropagación y ajuste inmediato de pesos
+                self.backpropagation_y_sgd(X_batch, Y_batch)
+            
+            # Evaluar el costo global al final de la época
+            Y_pred_total = self.forward_propagation(X_train)
+            costo_epoca = self.calcular_costo(Y_train, Y_pred_total)
+            historial_costo.append(costo_epoca)
+            
+            if (epoch + 1) % 10 == 0 or epoch == 0:
+                print(f"Época {epoch+1}/{epochs} -> Costo (Loss): {costo_epoca:.4f}")
+                
+        return historial_costo
